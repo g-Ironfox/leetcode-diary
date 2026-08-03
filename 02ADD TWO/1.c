@@ -1,5 +1,7 @@
 #include <stdlib.h>   // malloc / NULL 都在这里声明
 
+// 以下 struct ListNode 仅供本地编译测试
+// 提交到 LeetCode 时请删除，因为平台已自动定义该结构体，否则会报 redefinition 错误。
 struct ListNode {
     int val;             // 存一位数字
     struct ListNode *next;  // 指向下一个节点
