@@ -123,6 +123,25 @@ def two_sum_brute_force(nums, target):
                 return [i, j]
 ```
 
+```c
+int* twoSumBruteForce(int* nums, int numsSize, int target, int* returnSize) {
+    for (int i = 0; i < numsSize; i++) {
+        for (int j = i + 1; j < numsSize; j++) {
+            if (nums[i] + nums[j] == target) {
+                int* result = (int*)malloc(2 * sizeof(int));
+                result[0] = i;
+                result[1] = j;
+                *returnSize = 2;
+                return result;
+            }
+        }
+    }
+
+    *returnSize = 0;
+    return NULL;
+}
+```
+
 数组长度为 `n` 时，需要检查的二元组数量为：
 
 ```text
@@ -238,6 +257,47 @@ def two_sum_sort(nums, target):
             right -= 1
 ```
 
+```c
+typedef struct {
+    int value;
+    int index;
+} Item;
+
+int cmpItem(const void* a, const void* b) {
+    return ((Item*)a)->value - ((Item*)b)->value;
+}
+
+int* twoSumSort(int* nums, int numsSize, int target, int* returnSize) {
+    Item* items = (Item*)malloc(numsSize * sizeof(Item));
+    for (int i = 0; i < numsSize; i++) {
+        items[i].value = nums[i];
+        items[i].index = i;
+    }
+    qsort(items, numsSize, sizeof(Item), cmpItem);
+
+    int left = 0, right = numsSize - 1;
+    while (left < right) {
+        int current = items[left].value + items[right].value;
+        if (current == target) {
+            int* result = (int*)malloc(2 * sizeof(int));
+            result[0] = items[left].index;
+            result[1] = items[right].index;
+            *returnSize = 2;
+            free(items);
+            return result;
+        } else if (current < target) {
+            left++;
+        } else {
+            right--;
+        }
+    }
+
+    *returnSize = 0;
+    free(items);
+    return NULL;
+}
+```
+
 双指针最多移动 `n - 1` 次，因此排序后的扫描阶段是：
 
 ```text
@@ -279,6 +339,41 @@ def two_sum_with_sort(nums, target, sort_function):
             right -= 1
 ```
 
+```c
+typedef void (*SortFunc)(Item*, int);
+
+int* twoSumWithSort(int* nums, int numsSize, int target,
+                    int* returnSize, SortFunc sortFunc) {
+    Item* items = (Item*)malloc(numsSize * sizeof(Item));
+    for (int i = 0; i < numsSize; i++) {
+        items[i].value = nums[i];
+        items[i].index = i;
+    }
+    sortFunc(items, numsSize);
+
+    int left = 0, right = numsSize - 1;
+    while (left < right) {
+        int current = items[left].value + items[right].value;
+        if (current == target) {
+            int* result = (int*)malloc(2 * sizeof(int));
+            result[0] = items[left].index;
+            result[1] = items[right].index;
+            *returnSize = 2;
+            free(items);
+            return result;
+        } else if (current < target) {
+            left++;
+        } else {
+            right--;
+        }
+    }
+
+    *returnSize = 0;
+    free(items);
+    return NULL;
+}
+```
+
 只要不同排序函数最终将 `items` 按元素值排好，后面的双指针就不需要改变。
 
 
@@ -298,6 +393,22 @@ def selection_sort(items):
                 minimum = j
 
         items[i], items[minimum] = items[minimum], items[i]
+```
+
+```c
+void selectionSort(Item* items, int n) {
+    for (int i = 0; i < n; i++) {
+        int minIdx = i;
+        for (int j = i + 1; j < n; j++) {
+            if (items[j].value < items[minIdx].value) {
+                minIdx = j;
+            }
+        }
+        Item tmp = items[i];
+        items[i] = items[minIdx];
+        items[minIdx] = tmp;
+    }
+}
 ```
 
 调用：
@@ -330,6 +441,20 @@ def insertion_sort(items):
             j -= 1
 
         items[j + 1] = current
+```
+
+```c
+void insertionSort(Item* items, int n) {
+    for (int i = 1; i < n; i++) {
+        Item current = items[i];
+        int j = i - 1;
+        while (j >= 0 && items[j].value > current.value) {
+            items[j + 1] = items[j];
+            j--;
+        }
+        items[j + 1] = current;
+    }
+}
 ```
 
 调用：
@@ -375,6 +500,30 @@ def binary_insertion_sort(items):
             items[j] = items[j - 1]
 
         items[position] = current
+```
+
+```c
+void binaryInsertionSort(Item* items, int n) {
+    for (int i = 1; i < n; i++) {
+        Item current = items[i];
+
+        int left = 0, right = i;
+        while (left < right) {
+            int mid = (left + right) / 2;
+            if (items[mid].value <= current.value) {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
+        }
+
+        int pos = left;
+        for (int j = i; j > pos; j--) {
+            items[j] = items[j - 1];
+        }
+        items[pos] = current;
+    }
+}
 ```
 
 二分查找插入位置只需要：
@@ -430,6 +579,38 @@ def quick_sort(items):
         sort(pivot_index + 1, right)
 
     sort(0, len(items) - 1)
+```
+
+```c
+static int partition(Item* items, int left, int right) {
+    int pivot = items[right].value;
+    int boundary = left;
+
+    for (int i = left; i < right; i++) {
+        if (items[i].value <= pivot) {
+            Item tmp = items[boundary];
+            items[boundary] = items[i];
+            items[i] = tmp;
+            boundary++;
+        }
+    }
+
+    Item tmp = items[boundary];
+    items[boundary] = items[right];
+    items[right] = tmp;
+    return boundary;
+}
+
+static void quickSortImpl(Item* items, int left, int right) {
+    if (left >= right) return;
+    int pivotIdx = partition(items, left, right);
+    quickSortImpl(items, left, pivotIdx - 1);
+    quickSortImpl(items, pivotIdx + 1, right);
+}
+
+void quickSort(Item* items, int n) {
+    quickSortImpl(items, 0, n - 1);
+}
 ```
 
 调用：
@@ -492,6 +673,37 @@ def merge_sort(items):
             items[k] = temporary[k]
 
     sort(0, len(items))
+```
+
+```c
+static void mergeSortImpl(Item* items, Item* tmp, int left, int right) {
+    if (right - left <= 1) return;
+
+    int mid = (left + right) / 2;
+    mergeSortImpl(items, tmp, left, mid);
+    mergeSortImpl(items, tmp, mid, right);
+
+    int i = left, j = mid, k = left;
+    while (i < mid && j < right) {
+        if (items[i].value <= items[j].value) {
+            tmp[k++] = items[i++];
+        } else {
+            tmp[k++] = items[j++];
+        }
+    }
+    while (i < mid) tmp[k++] = items[i++];
+    while (j < right) tmp[k++] = items[j++];
+
+    for (k = left; k < right; k++) {
+        items[k] = tmp[k];
+    }
+}
+
+void mergeSort(Item* items, int n) {
+    Item* tmp = (Item*)malloc(n * sizeof(Item));
+    mergeSortImpl(items, tmp, 0, n);
+    free(tmp);
+}
 ```
 
 调用：
@@ -559,6 +771,44 @@ def two_sum_binary_search(nums, target):
 
         if left < len(items) and items[left][0] == need:
             return [items[i][1], items[left][1]]
+```
+
+```c
+int* twoSumBinarySearch(int* nums, int numsSize, int target, int* returnSize) {
+    Item* items = (Item*)malloc(numsSize * sizeof(Item));
+    for (int i = 0; i < numsSize; i++) {
+        items[i].value = nums[i];
+        items[i].index = i;
+    }
+    qsort(items, numsSize, sizeof(Item), cmpItem);
+
+    for (int i = 0; i < numsSize; i++) {
+        int need = target - items[i].value;
+
+        int left = i + 1, right = numsSize;
+        while (left < right) {
+            int mid = (left + right) / 2;
+            if (items[mid].value < need) {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
+        }
+
+        if (left < numsSize && items[left].value == need) {
+            int* result = (int*)malloc(2 * sizeof(int));
+            result[0] = items[i].index;
+            result[1] = items[left].index;
+            *returnSize = 2;
+            free(items);
+            return result;
+        }
+    }
+
+    *returnSize = 0;
+    free(items);
+    return NULL;
+}
 ```
 
 复杂度为：
@@ -876,8 +1126,85 @@ class Solution:
             index_by_value[x] = i
 ```
 
+```c
+#include <stdlib.h>
+#include <limits.h>
 
-## 5.3 C++ 实现
+typedef struct {
+    int key;
+    int value;
+} HashEntry;
+
+typedef struct {
+    HashEntry* entries;
+    int capacity;
+} HashMap;
+
+HashMap* createHashMap(int capacity) {
+    HashMap* map = (HashMap*)malloc(sizeof(HashMap));
+    map->entries = (HashEntry*)calloc(capacity, sizeof(HashEntry));
+    map->capacity = capacity;
+    for (int i = 0; i < capacity; i++) {
+        map->entries[i].key = INT_MIN;
+    }
+    return map;
+}
+
+void hashMapPut(HashMap* map, int key, int value) {
+    int idx = (key % map->capacity + map->capacity) % map->capacity;
+    while (map->entries[idx].key != INT_MIN && map->entries[idx].key != key) {
+        idx = (idx + 1) % map->capacity;
+    }
+    map->entries[idx].key = key;
+    map->entries[idx].value = value;
+}
+
+int hashMapGet(HashMap* map, int key, int* value) {
+    int idx = (key % map->capacity + map->capacity) % map->capacity;
+    while (map->entries[idx].key != INT_MIN) {
+        if (map->entries[idx].key == key) {
+            *value = map->entries[idx].value;
+            return 1;
+        }
+        idx = (idx + 1) % map->capacity;
+    }
+    return 0;
+}
+
+void freeHashMap(HashMap* map) {
+    free(map->entries);
+    free(map);
+}
+
+int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    HashMap* map = createHashMap(numsSize * 2 + 1);
+
+    for (int i = 0; i < numsSize; i++) {
+        int need = target - nums[i];
+        int prevIdx;
+
+        if (hashMapGet(map, need, &prevIdx)) {
+            int* result = (int*)malloc(2 * sizeof(int));
+            result[0] = prevIdx;
+            result[1] = i;
+            *returnSize = 2;
+            freeHashMap(map);
+            return result;
+        }
+
+        hashMapPut(map, nums[i], i);
+    }
+
+    *returnSize = 0;
+    freeHashMap(map);
+    return NULL;
+}
+```
+
+
+## 5.3 C++ 实现（参考）
+
+> 以下 C++ 版本保留作为参考。上面 5.2 已提供等效的纯 C 实现。
 
 ```cpp
 #include <unordered_map>

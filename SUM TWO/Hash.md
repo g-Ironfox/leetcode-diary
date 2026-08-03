@@ -31,6 +31,40 @@ def has_two_sum(nums, target):
     return False
 ```
 
+```c
+#include <stdbool.h>
+#include <stdlib.h>
+#include <limits.h>
+
+bool hasTwoSum(int* nums, int numsSize, int target) {
+    int capacity = numsSize * 2 + 1;
+    int* set = (int*)malloc(capacity * sizeof(int));
+    for (int i = 0; i < capacity; i++) set[i] = INT_MIN;
+
+    for (int i = 0; i < numsSize; i++) {
+        int need = target - nums[i];
+        int idx = (need % capacity + capacity) % capacity;
+        while (set[idx] != INT_MIN && set[idx] != need) {
+            idx = (idx + 1) % capacity;
+        }
+        if (set[idx] == need) {
+            free(set);
+            return true;
+        }
+
+        int x = nums[i];
+        idx = (x % capacity + capacity) % capacity;
+        while (set[idx] != INT_MIN && set[idx] != x) {
+            idx = (idx + 1) % capacity;
+        }
+        set[idx] = x;
+    }
+
+    free(set);
+    return false;
+}
+```
+
 这里不需要保存下标，使用 HashSet 即可。
 
 
@@ -57,6 +91,13 @@ value -> count
 frequency[x] = frequency.get(x, 0) + 1
 ```
 
+```c
+/* 假定已有 hashMapGet / hashMapPut： */
+int count = 0;
+hashMapGet(freq, x, &count);
+hashMapPut(freq, x, count + 1);
+```
+
 
 ## 1.4 保存所有位置：`value -> list[index]`
 
@@ -73,6 +114,25 @@ positions = {}
 
 for i, x in enumerate(nums):
     positions.setdefault(x, []).append(i)
+```
+
+```c
+typedef struct PosNode {
+    int index;
+    struct PosNode* next;
+} PosNode;
+
+#define POS_HASH_SIZE 100003
+
+PosNode* positions[POS_HASH_SIZE];
+
+void addPosition(int value, int index) {
+    int h = (value % POS_HASH_SIZE + POS_HASH_SIZE) % POS_HASH_SIZE;
+    PosNode* node = (PosNode*)malloc(sizeof(PosNode));
+    node->index = index;
+    node->next = positions[h];
+    positions[h] = node;
+}
 ```
 
 因此，所谓空间换时间并不只是“多存一些数据”，而是：
@@ -267,82 +327,183 @@ a != b
 
 下面只支持整数 key 和整数 value。
 
-```cpp
-#include <list>
-#include <utility>
-#include <vector>
-using namespace std;
+```c
+#include <stdlib.h>
 
-class SimpleHashMap {
-private:
-    static const int CAPACITY = 1009;
+#define CAPACITY 1009
 
-    vector<list<pair<int, int>>> buckets;
+typedef struct Node {
+    int key;
+    int value;
+    struct Node* next;
+} Node;
 
-    int getBucketIndex(int key) const {
-        int index = key % CAPACITY;
+typedef struct {
+    Node* buckets[CAPACITY];
+} SimpleHashMap;
 
-        if (index < 0) {
-            index += CAPACITY;
+static int getBucketIndex(int key) {
+    int index = key % CAPACITY;
+    if (index < 0) index += CAPACITY;
+    return index;
+}
+
+void initHashMap(SimpleHashMap* map) {
+    for (int i = 0; i < CAPACITY; i++) {
+        map->buckets[i] = NULL;
+    }
+}
+
+void put(SimpleHashMap* map, int key, int value) {
+    int idx = getBucketIndex(key);
+    Node* curr = map->buckets[idx];
+    while (curr) {
+        if (curr->key == key) {
+            curr->value = value;
+            return;
         }
-
-        return index;
+        curr = curr->next;
     }
 
-public:
-    SimpleHashMap() : buckets(CAPACITY) {}
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->key = key;
+    node->value = value;
+    node->next = map->buckets[idx];
+    map->buckets[idx] = node;
+}
 
-    void put(int key, int value) {
-        int index = getBucketIndex(key);
-
-        for (auto& entry : buckets[index]) {
-            if (entry.first == key) {
-                entry.second = value;
-                return;
-            }
+int get(SimpleHashMap* map, int key, int* value) {
+    int idx = getBucketIndex(key);
+    Node* curr = map->buckets[idx];
+    while (curr) {
+        if (curr->key == key) {
+            *value = curr->value;
+            return 1;
         }
-
-        buckets[index].push_back({key, value});
+        curr = curr->next;
     }
+    return 0;
+}
 
-    bool get(int key, int& value) const {
-        int index = getBucketIndex(key);
-
-        for (const auto& entry : buckets[index]) {
-            if (entry.first == key) {
-                value = entry.second;
-                return true;
-            }
+void freeHashMap(SimpleHashMap* map) {
+    for (int i = 0; i < CAPACITY; i++) {
+        Node* curr = map->buckets[i];
+        while (curr) {
+            Node* next = curr->next;
+            free(curr);
+            curr = next;
         }
-
-        return false;
     }
-};
+}
 ```
+
+> 附：原 C++ 版本
+>
+> ```cpp
+> #include <list>
+> #include <utility>
+> #include <vector>
+> using namespace std;
+>
+> class SimpleHashMap {
+> private:
+>     static const int CAPACITY = 1009;
+>
+>     vector<list<pair<int, int>>> buckets;
+>
+>     int getBucketIndex(int key) const {
+>         int index = key % CAPACITY;
+>
+>         if (index < 0) {
+>             index += CAPACITY;
+>         }
+>
+>         return index;
+>     }
+>
+> public:
+>     SimpleHashMap() : buckets(CAPACITY) {}
+>
+>     void put(int key, int value) {
+>         int index = getBucketIndex(key);
+>
+>         for (auto& entry : buckets[index]) {
+>             if (entry.first == key) {
+>                 entry.second = value;
+>                 return;
+>             }
+>         }
+>
+>         buckets[index].push_back({key, value});
+>     }
+>
+>     bool get(int key, int& value) const {
+>         int index = getBucketIndex(key);
+>
+>         for (const auto& entry : buckets[index]) {
+>             if (entry.first == key) {
+>                 value = entry.second;
+>                 return true;
+>             }
+>         }
+>
+>         return false;
+>     }
+> };
+> ```
 
 使用它完成 Two Sum：
 
-```cpp
-#include <vector>
-using namespace std;
+```c
+int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    SimpleHashMap map;
+    initHashMap(&map);
 
-vector<int> twoSum(vector<int>& nums, int target) {
-    SimpleHashMap indexByValue;
-
-    for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
+    for (int i = 0; i < numsSize; i++) {
         int need = target - nums[i];
-        int previousIndex;
+        int prevIdx;
 
-        if (indexByValue.get(need, previousIndex)) {
-            return {previousIndex, i};
+        if (get(&map, need, &prevIdx)) {
+            int* result = (int*)malloc(2 * sizeof(int));
+            result[0] = prevIdx;
+            result[1] = i;
+            *returnSize = 2;
+            freeHashMap(&map);
+            return result;
         }
 
-        indexByValue.put(nums[i], i);
+        put(&map, nums[i], i);
     }
 
-    return {};
+    *returnSize = 0;
+    freeHashMap(&map);
+    return NULL;
 }
 ```
+
+> 附：原 C++ 版本
+>
+> ```cpp
+> #include <vector>
+> using namespace std;
+>
+> vector<int> twoSum(vector<int>& nums, int target) {
+>     SimpleHashMap indexByValue;
+>
+>     for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
+>         int need = target - nums[i];
+>         int previousIndex;
+>
+>         if (indexByValue.get(need, previousIndex)) {
+>             return {previousIndex, i};
+>         }
+>
+>         indexByValue.put(nums[i], i);
+>     }
+>
+>     return {};
+> }
+> ```
 
 这里的桶数组并不是按顺序保存原数组元素，而是按照：
 
@@ -395,6 +556,13 @@ stored_key == query_key
 
 ```cpp
 unordered_set<uint64_t> visited;
+```
+
+```c
+/* C 中没有 unordered_set；等价做法：Hash 表 + 完整状态验证 */
+#define STATE_CAP 100003
+static uint64_t visited[STATE_CAP];
+/* 使用开放寻址或拉链法存储，碰撞时需比较完整状态 */
 ```
 
 如果两个不同状态产生相同 Hash：
